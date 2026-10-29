@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Footprints } from "lucide-react";
-import { update } from "@/lib/store";
+import { update, useRemoteRevision } from "@/lib/store";
 import { KCAL_PER_KG, dailyExpenditure } from "@/lib/calc";
 import { addDays } from "@/lib/date";
 import type { AppData } from "@/lib/types";
@@ -12,6 +12,7 @@ const n = (v: number) => Math.round(v).toLocaleString();
 /** Steps entry plus today's burn (BMR + walking + gym + digestion) against what was eaten. */
 export function EnergyCard({ data, today }: { data: AppData; today: string }) {
   const [day, setDay] = useState(today);
+  const revision = useRemoteRevision();
   const ex = dailyExpenditure(data, day);
   if (!ex) return null;
 
@@ -46,7 +47,7 @@ export function EnergyCard({ data, today }: { data: AppData; today: string }) {
         </div>
       }
     >
-      <StepsForm key={day} data={data} day={day} />
+      <StepsForm key={`${day}-${revision}`} data={data} day={day} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
         <div className="rounded-xl bg-[var(--surface-control)] p-4 text-center">

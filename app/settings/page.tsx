@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Download, Plus, Trash2, Upload } from "lucide-react";
-import { exportJson, importJson, newId, resetAll, update, useAppData } from "@/lib/store";
+import { exportJson, importJson, newId, resetAll, update, useAppData, useRemoteRevision } from "@/lib/store";
 import { addDays, dateKey } from "@/lib/date";
 import type { AppData, Category, Equipment, Exercise, Profile } from "@/lib/types";
 import { CATEGORIES, EQUIPMENT_LABEL } from "@/lib/exercises";
@@ -18,10 +18,11 @@ const ACTIVITY = [
 
 export default function SettingsPage() {
   const data = useAppData();
+  const revision = useRemoteRevision();
   if (!data) return <Loading />;
   return (
     <div className="space-y-4">
-      <ProfileCard key={data.profile ? "edit" : "new"} data={data} />
+      <ProfileCard key={`${data.profile ? "edit" : "new"}-${revision}`} data={data} />
       <ExercisesCard data={data} />
       <SyncCard />
       <BackupCard />

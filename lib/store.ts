@@ -48,6 +48,8 @@ export { normalize as normalizeData };
 let cache: AppData | null = null;
 const listeners = new Set<() => void>();
 const localChangeListeners = new Set<() => void>();
+/** Bumped whenever data arrives from the cloud, so forms can re-seed their fields. */
+let remoteRevision = 0;
 
 function load(): AppData {
   if (cache) return cache;
@@ -68,6 +70,7 @@ function persist(next: AppData, local = true) {
   } catch {
     // Storage full or blocked: keep the in-memory copy so the session still works.
   }
+  if (!local) remoteRevision++;
   listeners.forEach((l) => l());
   if (local) localChangeListeners.forEach((l) => l());
 }
@@ -108,6 +111,14 @@ const SERVER_SNAPSHOT = emptyData();
 export function useAppData(): AppData | null {
   const data = useSyncExternalStore(subscribe, load, () => SERVER_SNAPSHOT);
   return data === SERVER_SNAPSHOT ? null : data;
+}
+
+/**
+ * Changes only when synced data replaces what this device had. Use it as a React `key` on forms
+ * whose fields are seeded from stored values, so they pick up the latest numbers after a pull.
+ */
+export function useRemoteRevision(): number {
+  return useSyncExternalStore(subscribe, () => remoteRevision, () => 0);
 }
 
 export function update(fn: (draft: AppData) => AppData) {

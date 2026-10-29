@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { update, useAppData } from "@/lib/store";
+import { update, useAppData, useRemoteRevision } from "@/lib/store";
 import { avg7, latestWeight, sortedWeights } from "@/lib/calc";
 import { addDays, dateKey, formatShort } from "@/lib/date";
 import type { AppData } from "@/lib/types";
@@ -16,10 +16,11 @@ const RANGES = [
 
 export default function WeightPage() {
   const data = useAppData();
+  const revision = useRemoteRevision();
   if (!data) return <Loading />;
   return (
     <div className="space-y-4">
-      <EntryCard data={data} />
+      <EntryCard key={revision} data={data} />
       <TrendCard data={data} />
       <HistoryCard data={data} />
     </div>

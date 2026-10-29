@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Moon } from "lucide-react";
-import { update, useAppData } from "@/lib/store";
+import { update, useAppData, useRemoteRevision } from "@/lib/store";
 import { calorieTarget, dailyGoals, dayReport, macroTargets, sleepStats, sumNutrients, weeklyAdjustment, type Goal } from "@/lib/calc";
 import { dateKey, weekStart } from "@/lib/date";
 import type { AppData, SleepEntry } from "@/lib/types";
@@ -14,6 +14,7 @@ const GOAL_HREF: Record<Goal["key"], string> = { weight: "/weight", sleep: "#sle
 
 export default function TodayPage() {
   const data = useAppData();
+  const revision = useRemoteRevision();
   const today = dateKey();
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function TodayPage() {
       </Card>
 
       <div id="sleep" className="scroll-mt-20">
-        <SleepCard data={data} today={today} />
+        <SleepCard key={revision} data={data} today={today} />
       </div>
 
       {report ? (
