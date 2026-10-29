@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useAppData } from "@/lib/store";
 import { e1rm, sessionsFor, sleepStats } from "@/lib/calc";
+import { formatEntry, isCardio } from "@/lib/exercises";
 import { addDays, dateKey } from "@/lib/date";
 import type { AppData } from "@/lib/types";
 import { Card, Loading, SetupNotice } from "@/components/ui";
@@ -90,21 +91,25 @@ function StrengthTrend({ data, from, today }: { data: AppData; from: string; tod
       </Card>
     );
   }
-  const repsOnly = data.sets.filter((s) => s.exerciseId === exercise.id).every((s) => s.weight === 0);
-  const metric = repsOnly ? "最高回数" : "推定 1RM";
+  const cardio = isCardio(exercise);
+  const repsOnly = !cardio && data.sets.filter((s) => s.exerciseId === exercise.id).every((s) => s.weight === 0);
+  const metric = cardio ? "時間" : repsOnly ? (exercise.timed ? "最長秒数" : "最高回数") : "推定 1RM";
+  const unit = cardio ? "分" : repsOnly ? (exercise.timed ? "秒" : "回") : "kg";
   const sessions = sessionsFor(data.sets, exercise.id)
     .filter((s) => s.date >= from)
     .reverse()
     .map((s) => ({
       date: s.date,
       // bodyweight sets without added load have no 1RM, so track the best rep count instead
-      best: Math.max(...s.sets.map((x) => (repsOnly ? x.reps : e1rm(x.weight, x.reps)))),
+      best: cardio
+        ? s.sets.reduce((m, x) => m + (x.minutes ?? 0), 0)
+        : Math.max(...s.sets.map((x) => (repsOnly ? x.reps : e1rm(x.weight, x.reps)))),
       volume: s.sets.reduce((v, x) => v + x.weight * x.reps, 0),
       sets: s.sets,
     }));
   return (
     <Card
-      title={`筋力（${metric}）`}
+      title={`種目の伸び（${metric}）`}
       action={
         <select className="ui-input w-44 max-w-[55%] py-1.5" value={exercise.id} onChange={(e) => setExerciseId(e.target.value)} aria-label="種目">
           {trained.map((e) => (
@@ -117,15 +122,15 @@ function StrengthTrend({ data, from, today }: { data: AppData; from: string; tod
     >
       <LineChart
         series={[{ key: "best", label: metric, color: "var(--series-1)", kind: "line", points: sessions.map((s) => ({ date: s.date, value: s.best })) }]}
-        unit={repsOnly ? "回" : "kg"}
-        digits={repsOnly ? 0 : 1}
+        unit={unit}
+        digits={unit === "kg" ? 1 : 0}
         from={from}
         to={today}
         ariaLabel={`${exercise.name}の${metric}の推移`}
       />
       <DataTable
         head={["日付", metric, "総挙上量", "セット"]}
-        rows={[...sessions].reverse().map((s) => [s.date, s.best.toFixed(repsOnly ? 0 : 1), Math.round(s.volume), s.sets.map((x) => `${x.weight}×${x.reps}`).join(" ")])}
+        rows={[...sessions].reverse().map((s) => [s.date, s.best.toFixed(unit === "kg" ? 1 : 0), Math.round(s.volume), s.sets.map((x) => formatEntry(exercise, x)).join(" ")])}
       />
     </Card>
   );

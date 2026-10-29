@@ -34,9 +34,9 @@ export type Nutrients = { kcal: number; protein: number; fat: number; carbs: num
 
 export type Meal = Nutrients & { id: string; date: string; time: string; /** set when added from a template */ name?: string };
 
-export type Category = "chest" | "back" | "shoulders" | "legs" | "arms" | "core" | "other";
+export type Category = "chest" | "back" | "shoulders" | "legs" | "arms" | "core" | "neck" | "cardio" | "other";
 
-export type Equipment = "barbell" | "dumbbell" | "machine" | "cable" | "bodyweight";
+export type Equipment = "barbell" | "dumbbell" | "machine" | "cable" | "plate" | "bodyweight";
 
 export type Exercise = {
   id: string;
@@ -48,6 +48,10 @@ export type Exercise = {
   increment: number;
   targetReps: number;
   targetSets: number;
+  /** reps are held seconds (plank etc.) */
+  timed?: boolean;
+  /** cardio only: METs at a typical pace, for the calorie estimate */
+  met?: number;
 };
 
 export type SetEntry = {
@@ -56,6 +60,9 @@ export type SetEntry = {
   exerciseId: string;
   weight: number;
   reps: number;
+  /** cardio only */
+  minutes?: number;
+  km?: number;
   at: string;
 };
 

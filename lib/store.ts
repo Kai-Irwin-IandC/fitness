@@ -28,9 +28,8 @@ type LegacyMeal = Partial<Meal> & { id: string; date: string; time: string; item
 /** Upgrades data saved by older versions: categorised exercises, new library entries, flat meals. */
 function normalize(raw: Partial<AppData>): AppData {
   const d = { ...emptyData(), ...raw } as AppData;
-  let exercises: Exercise[] = (raw.exercises ?? d.exercises).map((e) =>
-    e.category && e.equipment ? e : { ...e, ...libraryMeta(e.name) },
-  );
+  // library defaults first so fields added later (timed, met) reach old saves; saved values win
+  let exercises: Exercise[] = (raw.exercises ?? d.exercises).map((e) => ({ ...libraryMeta(e.name), ...e }));
   if ((raw.libraryVersion ?? 1) < LIBRARY_VERSION) {
     const have = new Set(exercises.map((e) => e.name));
     exercises = [...exercises, ...LIBRARY.filter((e) => !have.has(e.name)).map((e) => exerciseFromLibrary(e, id()))];

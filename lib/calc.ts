@@ -173,24 +173,27 @@ export type NextTarget = { weight: number; reps: number; reason: string };
 
 /** Progressive overload (the Cora idea): +increment when every set hit target reps, else chase one more rep. */
 export function nextTarget(ex: Exercise, sets: SetEntry[], today: string): NextTarget | null {
+  if (ex.category === "cardio") return null;
   const sessions = sessionsFor(sets, ex.id).filter((s) => s.date < today);
   const last = sessions[0];
   if (!last) return null;
   const top = Math.max(...last.sets.map((s) => s.weight));
   const work = last.sets.filter((s) => s.weight === top);
   const allHit = work.length >= ex.targetSets && work.every((s) => s.reps >= ex.targetReps);
+  const unit = ex.timed ? "秒" : "回";
   if (allHit && ex.increment === 0) {
     const best = Math.max(...work.map((s) => s.reps));
-    return { weight: top, reps: best + 1, reason: `前回 全セット ${ex.targetReps} 回達成 → 回数を 1 回伸ばす` };
+    const step = ex.timed ? 5 : 1;
+    return { weight: top, reps: best + step, reason: `前回 全セット ${ex.targetReps}${unit} 達成 → ${step}${unit}伸ばす` };
   }
   if (allHit) {
-    return { weight: top + ex.increment, reps: ex.targetReps, reason: `前回 全セット ${ex.targetReps} 回達成 → +${ex.increment}kg` };
+    return { weight: top + ex.increment, reps: ex.targetReps, reason: `前回 全セット ${ex.targetReps}${unit} 達成 → +${ex.increment}kg` };
   }
   const best = Math.max(...work.map((s) => s.reps));
   return {
     weight: top,
     reps: Math.min(ex.targetReps, best + 1),
-    reason: `前回は ${ex.targetReps} 回×${ex.targetSets} セット未達 → 同じ重量で回数を伸ばす`,
+    reason: `前回は ${ex.targetReps}${unit}×${ex.targetSets} セット未達 → 同じ重量で${ex.timed ? "秒数" : "回数"}を伸ばす`,
   };
 }
 

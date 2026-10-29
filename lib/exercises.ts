@@ -1,4 +1,4 @@
-import type { Category, Equipment, Exercise } from "./types";
+import type { Category, Equipment, Exercise, SetEntry } from "./types";
 
 export const CATEGORIES: { key: Category; label: string }[] = [
   { key: "chest", label: "胸" },
@@ -6,7 +6,9 @@ export const CATEGORIES: { key: Category; label: string }[] = [
   { key: "shoulders", label: "肩" },
   { key: "legs", label: "脚・お尻" },
   { key: "arms", label: "腕" },
-  { key: "core", label: "腹" },
+  { key: "core", label: "腹筋" },
+  { key: "neck", label: "首" },
+  { key: "cardio", label: "有酸素" },
   { key: "other", label: "その他" },
 ];
 
@@ -15,16 +17,26 @@ export const EQUIPMENT_LABEL: Record<Equipment, string> = {
   dumbbell: "ダンベル",
   machine: "マシン",
   cable: "ケーブル",
+  plate: "プレート",
   bodyweight: "自重",
 };
 
 /** kg added after a session where every set hit the target reps. Bodyweight progresses by reps instead. */
-const INCREMENT: Record<Equipment, number> = { barbell: 2.5, dumbbell: 1, machine: 2.5, cable: 2.5, bodyweight: 0 };
+const INCREMENT: Record<Equipment, number> = { barbell: 2.5, dumbbell: 1, machine: 2.5, cable: 2.5, plate: 1.25, bodyweight: 0 };
 
-type LibraryEntry = { name: string; category: Category; equipment: Equipment; reps: number; aliases?: string[] };
+type LibraryEntry = {
+  name: string;
+  category: Category;
+  equipment: Equipment;
+  /** target reps; seconds when `timed`; minutes for cardio */
+  reps: number;
+  aliases?: string[];
+  timed?: boolean;
+  met?: number;
+};
 
 /** Bump when entries are added so existing users receive the new exercises once. */
-export const LIBRARY_VERSION = 2;
+export const LIBRARY_VERSION = 3;
 
 export const LIBRARY: LibraryEntry[] = [
   // 胸
@@ -82,6 +94,26 @@ export const LIBRARY: LibraryEntry[] = [
   { name: "アブローラー", category: "core", equipment: "bodyweight", reps: 10, aliases: ["腹ローラー", "abroller"] },
   { name: "ケーブルクランチ", category: "core", equipment: "cable", reps: 15 },
   { name: "ロシアンツイスト", category: "core", equipment: "bodyweight", reps: 20, aliases: ["ツイスト"] },
+  { name: "プランク", category: "core", equipment: "bodyweight", reps: 45, timed: true, aliases: ["plank"] },
+  { name: "サイドプランク", category: "core", equipment: "bodyweight", reps: 30, timed: true },
+  { name: "ハンギングレッグレイズ", category: "core", equipment: "bodyweight", reps: 10, aliases: ["ハンギング"] },
+  { name: "バイシクルクランチ", category: "core", equipment: "bodyweight", reps: 20, aliases: ["バイシクル"] },
+  { name: "デッドバグ", category: "core", equipment: "bodyweight", reps: 12 },
+  // 首（軽い重量・高回数から）
+  { name: "ネックカール（前）", category: "neck", equipment: "plate", reps: 20, aliases: ["ネックカール", "ネックフレクション"] },
+  { name: "ネックエクステンション（後ろ）", category: "neck", equipment: "plate", reps: 20, aliases: ["ネックエクステンション"] },
+  { name: "サイドネックレイズ（横）", category: "neck", equipment: "plate", reps: 15, aliases: ["サイドネック"] },
+  { name: "ネックハーネス", category: "neck", equipment: "plate", reps: 15, aliases: ["ハーネス"] },
+  { name: "4WAY ネックマシン", category: "neck", equipment: "machine", reps: 15, aliases: ["ネックマシン"] },
+  // 有酸素（reps = 目標の分数）
+  { name: "トレッドミル（早歩き・傾斜）", category: "cardio", equipment: "machine", reps: 20, met: 5, aliases: ["ウォーキング", "トレッドミル"] },
+  { name: "トレッドミル（ラン）", category: "cardio", equipment: "machine", reps: 20, met: 8.3, aliases: ["ラン", "ランニング"] },
+  { name: "エアロバイク", category: "cardio", equipment: "machine", reps: 20, met: 6.8, aliases: ["バイク", "bike"] },
+  { name: "ステアクライマー", category: "cardio", equipment: "machine", reps: 15, met: 9, aliases: ["ステア", "stair"] },
+  { name: "クロストレーナー", category: "cardio", equipment: "machine", reps: 20, met: 5, aliases: ["エリプティカル"] },
+  { name: "ローイングマシン", category: "cardio", equipment: "machine", reps: 15, met: 7, aliases: ["ローイング", "row machine"] },
+  { name: "縄跳び", category: "cardio", equipment: "bodyweight", reps: 10, met: 11, aliases: ["なわとび"] },
+  { name: "外ウォーキング", category: "cardio", equipment: "bodyweight", reps: 30, met: 3.5, aliases: ["散歩"] },
 ];
 
 export function exerciseFromLibrary(entry: LibraryEntry, id: string): Exercise {
@@ -93,14 +125,41 @@ export function exerciseFromLibrary(entry: LibraryEntry, id: string): Exercise {
     equipment: entry.equipment,
     increment: INCREMENT[entry.equipment],
     targetReps: entry.reps,
-    targetSets: 3,
+    targetSets: entry.category === "cardio" ? 1 : 3,
+    ...(entry.timed ? { timed: true } : {}),
+    ...(entry.met ? { met: entry.met } : {}),
   };
 }
 
-export function libraryMeta(name: string): { category: Category; equipment: Equipment } {
+export function libraryMeta(name: string): Pick<Exercise, "category" | "equipment" | "timed" | "met"> {
   const hit = LIBRARY.find((e) => e.name === name);
-  return hit ? { category: hit.category, equipment: hit.equipment } : { category: "other", equipment: "machine" };
+  if (!hit) return { category: "other", equipment: "machine" };
+  return { category: hit.category, equipment: hit.equipment, ...(hit.timed ? { timed: true } : {}), ...(hit.met ? { met: hit.met } : {}) };
 }
+
+export const isCardio = (ex: Pick<Exercise, "category">) => ex.category === "cardio";
+
+/** One logged entry as text: "80kg×8", "自重×12", "45秒", "20分・3km". */
+export function formatEntry(ex: Exercise | undefined, s: Pick<SetEntry, "weight" | "reps" | "minutes" | "km">): string {
+  if (ex && isCardio(ex)) return `${s.minutes ?? 0}分${s.km ? `・${s.km}km` : ""}`;
+  if (ex?.timed) return s.weight > 0 ? `${s.weight}kg×${s.reps}秒` : `${s.reps}秒`;
+  return s.weight === 0 ? `自重×${s.reps}` : `${s.weight}kg×${s.reps}`;
+}
+
+/** Calories burned: METs × body weight × hours. A rough estimate. */
+export function cardioKcal(met: number | undefined, kg: number, minutes: number): number {
+  return Math.round((met ?? 6) * kg * (minutes / 60));
+}
+
+/** Optional finishers offered under every split day. */
+export const FINISHERS: { label: string; exercise: string }[] = [
+  { label: "有酸素", exercise: "トレッドミル（早歩き・傾斜）" },
+  { label: "有酸素", exercise: "エアロバイク" },
+  { label: "腹筋", exercise: "プランク" },
+  { label: "腹筋", exercise: "ハンギングレッグレイズ" },
+  { label: "首", exercise: "ネックカール（前）" },
+  { label: "首", exercise: "ネックエクステンション（後ろ）" },
+];
 
 // ---------- split templates ----------
 

@@ -2,13 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Timer, Trash2, X } from "lucide-react";
 import { newId, update, useAppData } from "@/lib/store";
-import { e1rm, nextSplitDay, nextTarget, parseSetShorthand, sessionsFor } from "@/lib/calc";
-import { CATEGORIES, EQUIPMENT_LABEL, SPLITS } from "@/lib/exercises";
+import { avg7, e1rm, latestWeight, nextSplitDay, nextTarget, parseSetShorthand, sessionsFor } from "@/lib/calc";
+import { CATEGORIES, EQUIPMENT_LABEL, FINISHERS, SPLITS, cardioKcal, formatEntry, isCardio } from "@/lib/exercises";
 import { dateKey, formatShort } from "@/lib/date";
 import type { AppData, Category, Exercise, SetEntry } from "@/lib/types";
 import { Card, Loading, Stepper } from "@/components/ui";
-
-const fmtSet = (weight: number, reps: number) => (weight === 0 ? `自重×${reps}` : `${weight}kg×${reps}`);
 
 const chipClass = (active: boolean) =>
   `min-h-11 rounded-full border px-4 text-sm font-semibold ${
@@ -39,7 +37,7 @@ export default function GymPage() {
     requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const logSets = (exerciseId: string, weight: number, reps: number, count = 1) => {
+  const logSets = (exerciseId: string, weight: number, reps: number, count = 1, cardio?: { minutes: number; km: number }) => {
     const base = Date.now();
     const entries: SetEntry[] = Array.from({ length: count }, (_, i) => ({
       id: newId(),
@@ -47,10 +45,11 @@ export default function GymPage() {
       exerciseId,
       weight,
       reps,
+      ...(cardio ? { minutes: cardio.minutes, km: cardio.km } : {}),
       at: new Date(base + i).toISOString(),
     }));
     update((d) => ({ ...d, sets: [...d.sets, ...entries] }));
-    setRestUntil(Date.now() + restSeconds * 1000);
+    if (!cardio) setRestUntil(Date.now() + restSeconds * 1000);
   };
 
   return (
@@ -58,7 +57,13 @@ export default function GymPage() {
       <TemplateCard data={data} today={today} selectedId={selectedId} onSelect={select} />
 
       <div ref={panelRef} className="scroll-mt-20">
-        {selected ? <ExercisePanel key={selected.id} data={data} exercise={selected} today={today} onLog={logSets} /> : null}
+        {selected ? (
+          isCardio(selected) ? (
+            <CardioPanel key={selected.id} data={data} exercise={selected} today={today} onLog={(minutes, km) => logSets(selected.id, 0, 0, 1, { minutes, km })} />
+          ) : (
+            <ExercisePanel key={selected.id} data={data} exercise={selected} today={today} onLog={logSets} />
+          )
+        ) : null}
       </div>
 
       <CategoryCard data={data} selectedId={selectedId} onSelect={select} />
@@ -159,7 +164,7 @@ function SplitDays({
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-[var(--text-title)]">{ex.name}</span>
                   <span className="tabular block text-xs text-[var(--text-muted)]">
-                    {EQUIPMENT_LABEL[ex.equipment]}・{top ? `前回 ${fmtSet(top.weight, top.reps)}` : "未実施"}
+                    {EQUIPMENT_LABEL[ex.equipment]}・{top ? `前回 ${formatEntry(ex, top)}` : "未実施"}
                   </span>
                 </span>
                 {doneToday ? (
@@ -175,7 +180,28 @@ function SplitDays({
           );
         })}
       </ul>
+      <Finishers data={data} selectedId={selectedId} onSelect={onSelect} />
     </>
+  );
+}
+
+/** Optional cardio / abs / neck to tack on after any split day. */
+function Finishers({ data, selectedId, onSelect }: { data: AppData; selectedId: string | null; onSelect: (id: string) => void }) {
+  const byName = new Map(data.exercises.map((e) => [e.name, e]));
+  const items = FINISHERS.map((f) => ({ ...f, ex: byName.get(f.exercise) })).filter((f): f is typeof f & { ex: Exercise } => Boolean(f.ex));
+  if (!items.length) return null;
+  return (
+    <div className="mt-3">
+      <p className="mb-2 text-xs font-semibold text-[var(--text-muted)]">仕上げ（任意）：有酸素・腹筋・首</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map(({ label, ex }) => (
+          <button key={ex.id} type="button" aria-pressed={selectedId === ex.id} onClick={() => onSelect(ex.id)} className={chipClass(selectedId === ex.id)}>
+            <span className={`mr-1.5 text-[11px] font-medium ${selectedId === ex.id ? "text-white/80" : "text-[var(--text-muted)]"}`}>{label}</span>
+            {ex.name}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -296,14 +322,14 @@ function ExercisePanel({
         {previous ? (
           <p className="tabular text-[var(--text-body)]">
             <span className="text-xs font-semibold text-[var(--text-muted)]">前回 {formatShort(previous.date)}：</span>
-            {previous.sets.map((s) => fmtSet(s.weight, s.reps)).join("、")}
+            {previous.sets.map((s) => formatEntry(exercise, s)).join("、")}
           </p>
         ) : (
           <p className="text-xs text-[var(--text-muted)]">初めての種目です。無理のない重量から始めてください。</p>
         )}
         {target ? (
           <p className="rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-xs font-semibold text-[var(--text-active)]">
-            今日の目標 {fmtSet(target.weight, target.reps)} × {exercise.targetSets} セット — {target.reason}
+            今日の目標 {formatEntry(exercise, { weight: target.weight, reps: target.reps })} × {exercise.targetSets} セット — {target.reason}
           </p>
         ) : null}
       </div>
@@ -315,7 +341,14 @@ function ExercisePanel({
           step={exercise.increment || 2.5}
           onChange={setWeight}
         />
-        <Stepper label="回数" unit="回" value={reps} step={1} min={1} onChange={setReps} />
+        <Stepper
+          label={exercise.timed ? "秒数" : "回数"}
+          unit={exercise.timed ? "秒" : "回"}
+          value={reps}
+          step={exercise.timed ? 5 : 1}
+          min={1}
+          onChange={setReps}
+        />
       </div>
       <button type="button" className="ui-button mt-3 h-14 w-full text-base" onClick={() => onLog(exercise.id, weight, reps)}>
         {todays.length + 1} セット目を記録
@@ -323,7 +356,7 @@ function ExercisePanel({
       {todays.length ? (
         <ol className="mt-3 space-y-1">
           {todays.map((s, i) => (
-            <SetRow key={s.id} set={s} index={i} />
+            <SetRow key={s.id} set={s} index={i} exercise={exercise} />
           ))}
         </ol>
       ) : null}
@@ -331,13 +364,68 @@ function ExercisePanel({
   );
 }
 
-function SetRow({ set, index }: { set: SetEntry; index: number }) {
+function CardioPanel({
+  data,
+  exercise,
+  today,
+  onLog,
+}: {
+  data: AppData;
+  exercise: Exercise;
+  today: string;
+  onLog: (minutes: number, km: number) => void;
+}) {
+  const sessions = sessionsFor(data.sets, exercise.id);
+  const previous = sessions.find((s) => s.date < today)?.sets[0];
+  const todays = sessions.find((s) => s.date === today)?.sets ?? [];
+  const [minutes, setMinutes] = useState(previous?.minutes ?? exercise.targetReps);
+  const [km, setKm] = useState(previous?.km ?? 0);
+  const kg = avg7(data.weights, today) ?? latestWeight(data.weights) ?? data.profile?.startWeightKg ?? 70;
+
+  return (
+    <Card title={exercise.name} action={<span className="text-xs font-semibold text-[var(--text-muted)]">有酸素</span>}>
+      <p className="mb-3 text-xs text-[var(--text-muted)]">
+        {previous ? `前回 ${formatEntry(exercise, previous)}` : "初めての種目です。"}　消費の目安：約 {cardioKcal(exercise.met, kg, minutes)}kcal
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Stepper label="時間" unit="分" value={minutes} step={5} min={1} onChange={setMinutes} />
+        <Stepper label="距離（任意）" unit="km" value={km} step={0.5} onChange={setKm} />
+      </div>
+      <button type="button" className="ui-button mt-3 h-14 w-full text-base" onClick={() => onLog(minutes, km)}>
+        {minutes}分を記録
+      </button>
+      {todays.length ? (
+        <ul className="mt-3 space-y-1">
+          {todays.map((s) => (
+            <li key={s.id} className="flex items-center justify-between rounded-lg bg-[var(--surface-control)] px-3 py-2 text-sm">
+              <span className="tabular">
+                {formatEntry(exercise, s)}
+                <span className="ml-2 text-xs text-[var(--text-muted)]">約 {cardioKcal(exercise.met, kg, s.minutes ?? 0)}kcal</span>
+              </span>
+              <button
+                type="button"
+                aria-label="この記録を削除"
+                className="ui-icon-button h-9 w-9"
+                onClick={() => update((d) => ({ ...d, sets: d.sets.filter((x) => x.id !== s.id) }))}
+              >
+                <Trash2 size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="mt-3 text-xs text-[var(--text-muted)]">消費カロリーは体重と運動強度（METs）から出した目安です。</p>
+    </Card>
+  );
+}
+
+function SetRow({ set, index, exercise }: { set: SetEntry; index: number; exercise: Exercise }) {
   return (
     <li className="flex items-center justify-between rounded-lg bg-[var(--surface-control)] px-3 py-2 text-sm">
       <span className="tabular">
         <span className="mr-2 text-xs text-[var(--text-muted)]">{index + 1}</span>
-        {fmtSet(set.weight, set.reps)} 回
-        {set.weight > 0 ? (
+        {formatEntry(exercise, set)}
+        {set.weight > 0 && !exercise.timed ? (
           <span className="ml-2 text-xs text-[var(--text-muted)]">推定1RM {e1rm(set.weight, set.reps).toFixed(1)}kg</span>
         ) : null}
       </span>
@@ -360,12 +448,15 @@ function TodaySession({ data, today }: { data: AppData; today: string }) {
   for (const s of sets) byExercise.set(s.exerciseId, [...(byExercise.get(s.exerciseId) ?? []), s]);
   const volume = sets.reduce((v, s) => v + s.weight * s.reps, 0);
   return (
-    <Card title="今日のセッション" action={<span className="tabular text-xs text-[var(--text-muted)]">総挙上量 {Math.round(volume).toLocaleString()}kg</span>}>
+    <Card
+      title="今日のセッション"
+      action={volume > 0 ? <span className="tabular text-xs text-[var(--text-muted)]">総挙上量 {Math.round(volume).toLocaleString()}kg</span> : undefined}
+    >
       <ul className="space-y-2 text-sm">
         {[...byExercise.entries()].map(([id, list]) => (
           <li key={id}>
             <p className="font-semibold text-[var(--text-title)]">{data.exercises.find((e) => e.id === id)?.name ?? "削除された種目"}</p>
-            <p className="tabular text-[var(--text-body)]">{list.map((s) => fmtSet(s.weight, s.reps)).join("、")}</p>
+            <p className="tabular text-[var(--text-body)]">{list.map((s) => formatEntry(data.exercises.find((e) => e.id === id), s)).join("、")}</p>
           </li>
         ))}
       </ul>
