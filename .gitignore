@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# context-pyramid raw data (personal, never commit)
+context-pyramid/

@@ -1,26 +1,154 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* ベース */
+  --background: #f5f8ff;
+  --foreground: #142033;
+  --card: #ffffff;
+  --card-border: #d9e3f2;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* アクセント（ブランドカラーを変える時はここだけ触る） */
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-deep: #1e3a8a;
+  --accent-cyan: #0284c7;
+  --accent-soft: #eef3ff;
+  --accent-ring: rgba(37, 99, 235, 0.16);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* テキスト */
+  --text-title: #0f1b2d;
+  --text-body: #132038;
+  --text-muted: #5d708c;
+  --text-nav: #31547f;
+  --text-brand: #1650df;
+  --text-active: #17396a;
+
+  /* ボーダー・面 */
+  --border-soft: #d7e2f2;
+  --border-control: #d6e1f2;
+  --border-input: #cad7ea;
+  --surface-control: #f6f9ff;
+  --surface-control-hover: #ebf2ff;
+
+  /* 影・オーバーレイ */
+  --shadow-panel: 0 8px 26px rgba(16, 42, 87, 0.07), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  --shadow-sidebar: 0 14px 34px rgba(15, 38, 74, 0.14);
+  --shadow-drawer: 0 18px 40px rgba(15, 38, 74, 0.2);
+  --overlay: rgba(13, 28, 52, 0.25);
+
+  /* 状態（目標の達成・一部・未入力） */
+  --status-good: #15803d;
+  --status-good-soft: #e8f6ed;
+  --status-warn: #b45309;
+  --status-warn-soft: #fdf3e4;
+  --status-todo: #5d708c;
+  --status-todo-soft: #f1f4f9;
+  --danger: #b91c1c;
+
+  /* グラフ（dataviz 参照パレットの 1〜3 番） */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --chart-grid: #e6ecf5;
+  --chart-dot: #9aa9bf;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  background-image:
+    radial-gradient(circle at 0% -10%, rgba(37, 99, 235, 0.12), transparent 34%),
+    radial-gradient(circle at 95% -15%, rgba(14, 116, 144, 0.09), transparent 30%),
+    linear-gradient(180deg, #f7f9ff 0%, #f2f6fd 100%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- 共通ユーティリティ（components レイヤーに置き、Tailwind のユーティリティで上書きできるようにする） ---- */
+@layer components {
+.glass-panel {
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  box-shadow: var(--shadow-panel);
+}
+
+.display-font { letter-spacing: 0.005em; }
+
+.gradient-text {
+  background: linear-gradient(110deg, var(--accent-deep), var(--accent-strong) 44%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ui-title { color: var(--text-title); font-weight: 700; }
+
+.ui-input {
+  width: 100%;
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text-body);
+  padding: 10px 12px;
+  /* 16px 未満だと iOS Safari が入力時に拡大する */
+  font-size: 16px;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.ui-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.ui-button {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-strong);
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 16px;
+  transition: filter 160ms ease, transform 160ms ease;
+}
+.ui-button:hover { filter: brightness(1.04); }
+.ui-button:active { transform: translateY(1px); }
+.ui-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ui-button-secondary {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border-control);
+  background: var(--surface-control);
+  color: var(--text-nav);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0 16px;
+  transition: background 160ms ease;
+}
+.ui-button-secondary:hover { background: var(--surface-control-hover); }
+.ui-button-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* アイコンのみのコントロール（サイドバー開閉・ハンバーガー） */
+.ui-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border-control);
+  background: var(--surface-control);
+  color: var(--text-nav);
+  transition: background 160ms ease;
+}
+.ui-icon-button:hover { background: var(--surface-control-hover); }
+
+.ui-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
 }

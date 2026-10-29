@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kai Health 健康管理
 
-## Getting Started
+体重・睡眠・食事・筋トレの 4 つのゴールを 1 画面で管理する個人用 Web アプリ。
+iPhone ではホーム画面に追加してアプリとして、PC ではブラウザで使う。
 
-First, run the development server:
+## 画面
+
+| 画面 | できること |
+|---|---|
+| 今日 | 4 つのゴールの達成状況、今日の PFC、睡眠日誌（前日の値を入力済み）、夜の 3 行まとめと「明日やること」 |
+| 体重 | 大きな入力欄と ±0.1 ボタンで記録（過去の日付も可）、毎朝の体重と 7 日平均のグラフ、日ごとの記録と前日比 |
+| 食事 | P・F・C（とカロリー）の数字を入れるだけ。カロリーは空欄なら PFC から計算。目標に対するバランスを表示 |
+| ジム | 分割法のテンプレート（Push/Pull/Legs・上半身/下半身・全身・部位別 5 分割）で「次の日」を表示。部位別（胸・背中・肩・脚・腕・腹）に約 50 種目。前回の記録から今日の目標を入力済みにし、1 タップで 1 セット記録、休憩タイマー。「ベンチ 80 8×3」の短文でも記録 |
+| 推移 | 種目ごとの推定 1RM（自重は最高回数）、睡眠時間と睡眠効率 |
+| 設定 | 身長・体重・目標・活動量、種目（部位・器具・上げ幅）、バックアップの書き出し／読み込み |
+
+カロリー目標は「消費カロリー − 目標ペースに必要な不足分」から始め、毎週月曜に先週の 7 日平均の実際の減り方と予定を比べて ±200kcal の範囲で自動調整する。
+PFC の目標は、たんぱく質 = 体重 × 設定値（g/kg）、脂質 = カロリーの 25%、炭水化物 = 残り。
+
+## データ
+
+DB は使わない。記録はすべてその端末のブラウザ（localStorage）に保存され、サーバーには何も送らない。
+iPhone と PC の間で移すとき・機種変更の前は、設定 > データ からバックアップ（JSON）を書き出して読み込む。
+
+## ローカルで動かす
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Vercel にデプロイ
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Vercel で この GitHub repo を Import する（Framework: Next.js、設定・環境変数ともに不要）。
+2. iPhone の Safari でデプロイ先を開き、共有 → 「ホーム画面に追加」。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 構成
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 15（App Router）+ Tailwind CSS 4、Irwin&co 標準の App Shell（PC はサイドバー、iPhone は下のタブバー）
+- `lib/calc.ts` — 7 日平均、カロリー・PFC 目標と週ごとの調整、睡眠効率、次の目標重量、分割法の次の日、推定 1RM、1 日のまとめ
+- `lib/exercises.ts` — 種目ライブラリ（部位・器具）と分割法テンプレート
+- `lib/store.ts` — localStorage の読み書き、古い保存形式の自動変換、バックアップ
