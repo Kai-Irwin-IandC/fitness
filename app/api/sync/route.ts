@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import { BlobPreconditionFailedError, get, put } from "@vercel/blob";
+import { BlobNotFoundError, BlobPreconditionFailedError, get, head, put } from "@vercel/blob";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,15 +21,29 @@ function authorize(req: Request): Response | null {
   return null;
 }
 
+/** The strong ETag that `put({ ifMatch })` compares against, or null when the blob doesn't exist. */
+async function currentEtag(): Promise<string | null> {
+  try {
+    return (await head(PATHNAME)).etag;
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return null;
+    throw error;
+  }
+}
+
 export async function GET(req: Request) {
   const denied = authorize(req);
   if (denied) return denied;
-  const result = await get(PATHNAME, { access: "private", useCache: false });
-  if (!result || result.statusCode !== 200) {
+  // get() reports a weak (W/) ETag for the transfer, which ifMatch never matches, so take the
+  // ETag from head(). Read it before the content: if a write lands in between, the ETag is the
+  // older one and this device's next push conflicts and re-pulls instead of overwriting.
+  const etag = await currentEtag();
+  const result = etag ? await get(PATHNAME, { access: "private", useCache: false }) : null;
+  if (!etag || !result || result.statusCode !== 200) {
     return Response.json({ data: null, etag: null });
   }
   const data = JSON.parse(await new Response(result.stream).text());
-  return Response.json({ data, etag: result.blob.etag });
+  return Response.json({ data, etag });
 }
 
 export async function PUT(req: Request) {
@@ -40,7 +54,7 @@ export async function PUT(req: Request) {
     return Response.json({ error: "bad_request" }, { status: 400 });
   }
   // without an etag this device has never seen the remote copy: only create, never overwrite
-  if (!body.etag && (await get(PATHNAME, { access: "private", useCache: false }))) {
+  if (!body.etag && (await currentEtag())) {
     return Response.json({ error: "conflict" }, { status: 409 });
   }
   try {
