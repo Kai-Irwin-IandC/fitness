@@ -7,6 +7,7 @@ import { dateKey, timeKey } from "@/lib/date";
 import type { Meal } from "@/lib/types";
 import { Card, Loading, SetupNotice } from "@/components/ui";
 import { MacroSummary } from "@/components/macro-summary";
+import { MealTemplatesCard } from "@/components/meal-templates-card";
 
 type Form = { kcal: string; protein: string; fat: string; carbs: string };
 const EMPTY: Form = { kcal: "", protein: "", fat: "", carbs: "" };
@@ -28,6 +29,14 @@ export default function MealsPage() {
           <MacroSummary eaten={eaten} target={target} />
         </Card>
       ) : null}
+      <MealTemplatesCard
+        today={today}
+        remaining={
+          target
+            ? { kcal: target.kcal - eaten.kcal, protein: target.protein - eaten.protein, fat: target.fat - eaten.fat, carbs: target.carbs - eaten.carbs }
+            : null
+        }
+      />
       <EntryCard today={today} />
       <Card title="今日の記録">
         {todayMeals.length ? (
@@ -76,7 +85,7 @@ function EntryCard({ today }: { today: string }) {
   );
 
   return (
-    <Card title="食事を追加">
+    <Card title="数字で追加">
       <form onSubmit={save}>
         <div className="grid grid-cols-3 gap-2">
           {field("protein", "P たんぱく質", "g")}
@@ -97,6 +106,7 @@ function MealRow({ meal }: { meal: Meal }) {
     <li className="flex items-center justify-between gap-2 py-2">
       <p className="tabular text-sm text-[var(--text-body)]">
         <span className="mr-3 text-xs text-[var(--text-muted)]">{meal.time}</span>
+        {meal.name ? <span className="mr-2 font-semibold text-[var(--text-title)]">{meal.name}</span> : null}
         <strong className="text-[var(--text-title)]">{Math.round(meal.kcal)}kcal</strong>
         <span className="ml-2 text-xs">
           P{Math.round(meal.protein)} F{Math.round(meal.fat)} C{Math.round(meal.carbs)}

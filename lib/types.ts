@@ -32,7 +32,7 @@ export type SleepEntry = {
 
 export type Nutrients = { kcal: number; protein: number; fat: number; carbs: number };
 
-export type Meal = Nutrients & { id: string; date: string; time: string };
+export type Meal = Nutrients & { id: string; date: string; time: string; /** set when added from a template */ name?: string };
 
 export type Category = "chest" | "back" | "shoulders" | "legs" | "arms" | "core" | "other";
 

@@ -6,6 +6,8 @@ import { addDays, dateKey } from "@/lib/date";
 import type { AppData, Category, Equipment, Exercise, Profile } from "@/lib/types";
 import { CATEGORIES, EQUIPMENT_LABEL } from "@/lib/exercises";
 import { Card, Loading } from "@/components/ui";
+import { syncLabel } from "@/components/sync-status";
+import { getPasscode, setPasscode, syncNow, useSyncState } from "@/lib/sync";
 
 const ACTIVITY = [
   { value: 1.2, label: "ほぼ座り仕事・運動なし" },
@@ -21,6 +23,7 @@ export default function SettingsPage() {
     <div className="space-y-4">
       <ProfileCard key={data.profile ? "edit" : "new"} data={data} />
       <ExercisesCard data={data} />
+      <SyncCard />
       <BackupCard />
     </div>
   );
@@ -219,6 +222,55 @@ function ExercisesCard({ data }: { data: AppData }) {
   );
 }
 
+function SyncCard() {
+  const state = useSyncState();
+  const [value, setValue] = useState(() => getPasscode());
+  const detail =
+    state.status === "synced"
+      ? `${new Date(state.at).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })} に同期`
+      : state.status === "error" || state.status === "off"
+        ? state.detail
+        : "";
+  return (
+    <div id="sync" className="scroll-mt-20">
+      <Card title="同期（iPhone と PC で同じデータ）">
+        <p className="mb-3 text-xs text-[var(--text-muted)]">
+          Vercel の環境変数 APP_PASSCODE と同じパスコードを、使う端末それぞれで一度だけ入れます。記録は Vercel Blob に非公開で保存され、記録するたびに自動で同期します。
+        </p>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPasscode(value.trim());
+          }}
+        >
+          <input
+            className="ui-input"
+            type="password"
+            autoComplete="current-password"
+            placeholder="パスコード"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            aria-label="パスコード"
+          />
+          <button type="submit" className="ui-button shrink-0">
+            保存して同期
+          </button>
+        </form>
+        <div className="mt-3 flex items-center justify-between gap-2 text-sm">
+          <p>
+            <strong className="text-[var(--text-title)]">{syncLabel(state)}</strong>
+            {detail ? <span className="ml-2 text-xs text-[var(--text-muted)]">{detail}</span> : null}
+          </p>
+          <button type="button" className="ui-button-secondary shrink-0 px-3" onClick={() => void syncNow()} disabled={state.status === "syncing"}>
+            今すぐ同期
+          </button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function BackupCard() {
   const [message, setMessage] = useState("");
   const download = () => {
@@ -233,7 +285,7 @@ function BackupCard() {
   return (
     <Card title="データ">
       <p className="mb-3 text-xs text-[var(--text-muted)]">
-        データはこの端末のブラウザだけに保存されます。iPhone と PC の間で移すときや、機種変更の前にバックアップを書き出してください。
+        同期とは別に、手元にファイルで残しておきたいときに使います。
       </p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="ui-button-secondary inline-flex items-center gap-2" onClick={download}>

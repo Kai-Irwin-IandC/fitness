@@ -36,7 +36,7 @@ export function MacroSummary({ eaten, target }: { eaten: Nutrients; target: Nutr
       <Meter label="カロリー (kcal)" value={eaten.kcal} max={target.kcal} />
       <div className="grid gap-3 sm:grid-cols-3">
         {MACROS.map((m) => (
-          <Meter key={m.key} label={`${m.label} (g)`} value={eaten[m.key]} max={target[m.key]} />
+          <Meter key={m.key} label={`${m.label} (g)`} value={eaten[m.key]} max={target[m.key]} overIsGood={m.key === "protein"} />
         ))}
       </div>
       <div className="space-y-2 rounded-lg bg-[var(--surface-control)] p-3">

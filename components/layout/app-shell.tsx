@@ -1,9 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { NAV_ITEMS, TAB_ITEMS, isActive } from "./nav-items";
+import { SyncStatus } from "@/components/sync-status";
+import { startSync } from "@/lib/sync";
 
 // ---- パラメータ（ここだけプロジェクトごとに差し替える） ----
 const BRAND_NAME = "Kai Health";
@@ -75,6 +77,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const pageLabel = NAV_ITEMS.find((n) => isActive(pathname, n.href))?.label ?? "";
 
+  useEffect(() => startSync(), []);
+
   return (
     <div className="min-h-screen">
       {/* デスクトップ：折りたたみサイドバー */}
@@ -113,7 +117,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <p className="display-font text-xl font-semibold gradient-text lg:text-2xl">
               {BRAND_NAME} {BRAND_SUBTITLE}
             </p>
+            <div className="hidden lg:block">
+              <SyncStatus />
+            </div>
             <div className="flex items-center gap-3 lg:hidden">
+              <SyncStatus />
               <p className="text-sm font-semibold text-[var(--text-nav)]">{pageLabel}</p>
               <Link
                 href="/settings"

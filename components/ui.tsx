@@ -108,9 +108,10 @@ export function Loading() {
   return <p className="text-sm text-[var(--text-muted)]">読み込み中…</p>;
 }
 
-export function Meter({ value, max, label }: { value: number; max: number; label: string }) {
+/** `overIsGood`: going past the target is fine (e.g. protein), so it stays in the accent colour. */
+export function Meter({ value, max, label, overIsGood = false }: { value: number; max: number; label: string; overIsGood?: boolean }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  const over = value > max;
+  const over = value > max && !overIsGood;
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between text-xs">

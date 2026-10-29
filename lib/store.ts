@@ -43,8 +43,11 @@ function normalize(raw: Partial<AppData>): AppData {
   return { ...d, exercises, meals, libraryVersion: LIBRARY_VERSION };
 }
 
+export { normalize as normalizeData };
+
 let cache: AppData | null = null;
 const listeners = new Set<() => void>();
+const localChangeListeners = new Set<() => void>();
 
 function load(): AppData {
   if (cache) return cache;
@@ -57,7 +60,8 @@ function load(): AppData {
   return cache;
 }
 
-function persist(next: AppData) {
+/** `local` is false when the data came from the cloud, so it isn't pushed straight back. */
+function persist(next: AppData, local = true) {
   cache = next;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -65,6 +69,22 @@ function persist(next: AppData) {
     // Storage full or blocked: keep the in-memory copy so the session still works.
   }
   listeners.forEach((l) => l());
+  if (local) localChangeListeners.forEach((l) => l());
+}
+
+export function onLocalChange(listener: () => void) {
+  localChangeListeners.add(listener);
+  return () => {
+    localChangeListeners.delete(listener);
+  };
+}
+
+export function getData(): AppData {
+  return load();
+}
+
+export function replaceFromRemote(next: AppData) {
+  persist(next, false);
 }
 
 function subscribe(listener: () => void) {
