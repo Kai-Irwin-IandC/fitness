@@ -42,3 +42,6 @@ next-env.d.ts
 
 # context-pyramid raw data (personal, never commit)
 context-pyramid/
+
+# local-only notes (passcodes etc.), never commit
+*.local.md
