@@ -16,10 +16,10 @@ export default function MealsPage() {
   const data = useAppData();
   const today = dateKey();
   if (!data) return <Loading />;
-  if (!data.profile) return <SetupNotice />;
 
   const todayMeals = data.meals.filter((m) => m.date === today).sort((a, b) => a.time.localeCompare(b.time));
   const eaten = sumNutrients(todayMeals);
+  // targets need the profile; logging does not, so the rest of the page works before setup
   const target = macroTargets(data, today);
 
   return (
@@ -28,7 +28,9 @@ export default function MealsPage() {
         <Card title="今日の PFC">
           <MacroSummary eaten={eaten} target={target} />
         </Card>
-      ) : null}
+      ) : (
+        <SetupNotice />
+      )}
       <MealTemplatesCard
         today={today}
         remaining={
