@@ -17,6 +17,9 @@ export type Profile = {
 
 export type WeightEntry = { date: string; kg: number };
 
+/** Daily step count, entered from the iPhone Health app. */
+export type StepEntry = { date: string; count: number };
+
 /** CBT-I style sleep diary, keyed by the morning (wake) date. Times are "HH:MM". */
 export type SleepEntry = {
   date: string;
@@ -78,6 +81,7 @@ export type AppData = {
   libraryVersion: number;
   profile: Profile | null;
   weights: WeightEntry[];
+  steps: StepEntry[];
   sleeps: SleepEntry[];
   meals: Meal[];
   exercises: Exercise[];

@@ -87,7 +87,7 @@ async function call<T>(method: "GET" | "PUT", body?: object): Promise<T> {
 }
 
 const hasRecords = (d: AppData) =>
-  Boolean(d.profile || d.weights.length || d.meals.length || d.sets.length || d.sleeps.length);
+  Boolean(d.profile || d.weights.length || d.steps.length || d.meals.length || d.sets.length || d.sleeps.length);
 
 function unionBy<T>(local: T[], remote: T[], key: (x: T) => string): T[] {
   const map = new Map(remote.map((x) => [key(x), x]));
@@ -109,6 +109,7 @@ function merge(local: AppData, remote: AppData): AppData {
     ...local,
     profile: local.profile ?? remote.profile,
     weights: unionBy(local.weights, remote.weights, (w) => w.date),
+    steps: unionBy(local.steps, remote.steps, (st) => st.date),
     sleeps: unionBy(local.sleeps, remote.sleeps, (s) => s.date),
     meals: unionBy(local.meals, remote.meals, (m) => m.id),
     sets: unionBy(local.sets, remoteSets, (s) => s.id),

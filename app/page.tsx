@@ -8,6 +8,7 @@ import { dateKey, weekStart } from "@/lib/date";
 import type { AppData, SleepEntry } from "@/lib/types";
 import { Card, Loading, SetupNotice, StatusChip } from "@/components/ui";
 import { MacroSummary } from "@/components/macro-summary";
+import { EnergyCard } from "@/components/energy-card";
 
 const GOAL_HREF: Record<Goal["key"], string> = { weight: "/weight", sleep: "#sleep", food: "/meals", muscle: "/gym" };
 
@@ -45,6 +46,8 @@ export default function TodayPage() {
         ))}
       </div>
 
+      <EnergyCard data={data} today={today} />
+
       <Card
         title="今日の食事"
         action={
@@ -57,7 +60,7 @@ export default function TodayPage() {
           <div className="space-y-3">
             <MacroSummary eaten={eaten} target={macros} />
             <p className="text-xs text-[var(--text-muted)]">
-              目標 {target.kcal}kcal = 消費 {target.tdee} − 減量分 {target.deficit}
+              目標 {target.kcal}kcal = 想定消費 {target.tdee} − 減量分 {target.deficit}
               {target.adjustment ? `（週ごとの調整 ${target.adjustment > 0 ? "+" : ""}${target.adjustment}）` : ""}
             </p>
             {thisWeekAdj ? (

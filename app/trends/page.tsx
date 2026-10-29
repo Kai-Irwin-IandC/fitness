@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useAppData } from "@/lib/store";
-import { e1rm, sessionsFor, sleepStats } from "@/lib/calc";
+import { KCAL_PER_KG, dailyExpenditure, e1rm, sessionsFor, signedKcal, sleepStats } from "@/lib/calc";
 import { formatEntry, isCardio } from "@/lib/exercises";
 import { addDays, dateKey } from "@/lib/date";
 import type { AppData } from "@/lib/types";
@@ -41,6 +41,7 @@ export default function TrendsPage() {
           </button>
         ))}
       </div>
+      <BalanceTrend data={data} from={from} today={today} />
       <StrengthTrend data={data} from={from} today={today} />
       <SleepTrend data={data} from={from} />
     </div>
@@ -80,6 +81,43 @@ function DataTable({ head, rows }: { head: string[]; rows: (string | number)[][]
   );
 }
 
+/** Daily intake − expenditure for days with food logged, and what the period adds up to. */
+function BalanceTrend({ data, from, today }: { data: AppData; from: string; today: string }) {
+  const days = [...new Set(data.meals.map((m) => m.date))].filter((d) => d >= from && d <= today).sort();
+  const rows = days
+    .map((date) => ({ date, ex: dailyExpenditure(data, date) }))
+    .filter((r): r is { date: string; ex: NonNullable<ReturnType<typeof dailyExpenditure>> } => Boolean(r.ex));
+  const total = rows.reduce((t, r) => t + r.ex.balance, 0);
+  const avg = rows.length ? total / rows.length : 0;
+  return (
+    <Card title="カロリー収支（食べた − 消費）">
+      {rows.length ? (
+        <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+          <Stat label="この期間の合計" value={`${signedKcal(total)}kcal`} />
+          <Stat label="1 日平均" value={`${signedKcal(avg)}kcal`} />
+          <Stat label="脂肪に換算" value={`${total > 0 ? "+" : "−"}${(Math.abs(total) / KCAL_PER_KG).toFixed(2)}kg`} />
+        </div>
+      ) : null}
+      <DayBarChart
+        bars={rows.map((r) => ({
+          date: r.date,
+          value: r.ex.balance,
+          detail: `食べた ${r.ex.intake.toLocaleString()}・消費 ${r.ex.total.toLocaleString()}${r.ex.steps === null ? "（歩数なし）" : ""}`,
+        }))}
+        unit="kcal"
+        digits={0}
+        signed
+        ariaLabel="毎日のカロリー収支"
+      />
+      <p className="mt-2 text-xs text-[var(--text-muted)]">青がマイナス（消費が上回った日）、オレンジがプラス。食事を記録した日だけを集計しています。</p>
+      <DataTable
+        head={["日付", "収支", "食べた", "消費", "歩数"]}
+        rows={[...rows].reverse().map((r) => [r.date, signedKcal(r.ex.balance), r.ex.intake, r.ex.total, r.ex.steps ?? "—"])}
+      />
+    </Card>
+  );
+}
+
 function StrengthTrend({ data, from, today }: { data: AppData; from: string; today: string }) {
   const trained = data.exercises.filter((e) => data.sets.some((s) => s.exerciseId === e.id));
   const [exerciseId, setExerciseId] = useState(trained[0]?.id ?? "");
@@ -109,7 +147,7 @@ function StrengthTrend({ data, from, today }: { data: AppData; from: string; tod
     }));
   return (
     <Card
-      title={`種目の伸び（${metric}）`}
+      title={`伸び（${metric}）`}
       action={
         <select className="ui-input w-44 max-w-[55%] py-1.5" value={exercise.id} onChange={(e) => setExerciseId(e.target.value)} aria-label="種目">
           {trained.map((e) => (

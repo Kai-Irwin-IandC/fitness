@@ -42,10 +42,10 @@ function ProfileCard({ data }: { data: AppData }) {
   const [p, setP] = useState<Profile>(
     data.profile ?? {
       sex: "male",
-      birthYear: 1990,
-      heightCm: 175,
-      startWeightKg: 80,
-      targetWeightKg: 72,
+      birthYear: 1999,
+      heightCm: 178,
+      startWeightKg: 81,
+      targetWeightKg: 75,
       targetDate: addDays(dateKey(), 120),
       activity: 1.375,
       proteinPerKg: 2,
@@ -92,7 +92,7 @@ function ProfileCard({ data }: { data: AppData }) {
           <input type="date" className="ui-input tabular" value={p.targetDate} onChange={(e) => setP({ ...p, targetDate: e.target.value })} />
         </Field>
         <div className="col-span-2">
-          <Field label="活動量">
+          <Field label="活動量（目標カロリーの計算用）">
             <select className="ui-input" value={p.activity} onChange={(e) => setP({ ...p, activity: Number(e.target.value) })}>
               {ACTIVITY.map((a) => (
                 <option key={a.value} value={a.value}>

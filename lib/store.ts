@@ -14,6 +14,7 @@ function emptyData(): AppData {
     libraryVersion: LIBRARY_VERSION,
     profile: null,
     weights: [],
+    steps: [],
     sleeps: [],
     meals: [],
     exercises: LIBRARY.map((e) => exerciseFromLibrary(e, id())),

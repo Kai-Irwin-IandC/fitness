@@ -337,6 +337,10 @@ export function dayReport(data: AppData, day: string): { lines: string[]; tomorr
   } else {
     lines.push("睡眠：記録なし");
   }
+  const ex = dailyExpenditure(data, day);
+  if (ex && ex.hasMeals) {
+    lines.push(`収支：${signedKcal(ex.balance)}kcal（消費 ${ex.total.toLocaleString()}kcal${ex.steps === null ? "・歩数未入力" : ""}）`);
+  }
 
   let tomorrow: string;
   if (meals.length && eaten.protein < protein * 0.9) {
@@ -353,4 +357,84 @@ export function dayReport(data: AppData, day: string): { lines: string[]; tomorr
     tomorrow = "この調子で、明日の朝も体重を測る";
   }
   return { lines, tomorrow };
+}
+
+// ---------- energy expenditure ----------
+
+/** "+120" / "−1,165" with a real minus sign, for kcal balances. */
+export function signedKcal(v: number): string {
+  const r = Math.round(v);
+  return `${r > 0 ? "+" : r < 0 ? "−" : ""}${Math.abs(r).toLocaleString()}`;
+}
+
+/** General weight training (Compendium of Physical Activities ≈ 5 METs). */
+const STRENGTH_MET = 5;
+/** One set including rest, for estimating session length from the set count. */
+const MINUTES_PER_SET = 3;
+const WALK_MET = 3.5;
+const WALK_KMH = 4.8;
+/** Thermic effect of food: digestion burns about 10% of what is eaten. */
+const TEF_RATE = 0.1;
+
+/** Net kcal of walking `steps` (resting 1 MET excluded, it is in BMR). Stride ≈ 41% of height. */
+export function stepsKcal(profile: Profile, kg: number, steps: number): number {
+  const strideM = (profile.heightCm * (profile.sex === "male" ? 0.415 : 0.413)) / 100;
+  const hours = (steps * strideM) / 1000 / WALK_KMH;
+  return Math.round((WALK_MET - 1) * kg * hours);
+}
+
+export type Expenditure = {
+  bmr: number;
+  steps: number | null;
+  stepsKcal: number;
+  strengthSets: number;
+  strengthMinutes: number;
+  strengthKcal: number;
+  cardioMinutes: number;
+  cardioKcal: number;
+  tef: number;
+  total: number;
+  intake: number;
+  hasMeals: boolean;
+  /** intake − total: negative is a deficit */
+  balance: number;
+};
+
+/** BMR + walking + gym + digestion for one day, and the balance against what was eaten. */
+export function dailyExpenditure(data: AppData, day: string): Expenditure | null {
+  const profile = data.profile;
+  if (!profile) return null;
+  const kg = data.weights.find((w) => w.date === day)?.kg ?? avg7(data.weights, day) ?? latestWeight(data.weights) ?? profile.startWeightKg;
+  const base = round(bmr(profile, kg, day));
+  const steps = data.steps.find((s) => s.date === day)?.count ?? null;
+  const walk = steps ? stepsKcal(profile, kg, steps) : 0;
+
+  const byId = new Map(data.exercises.map((e) => [e.id, e]));
+  const daySets = data.sets.filter((s) => s.date === day);
+  const cardioSets = daySets.filter((s) => byId.get(s.exerciseId)?.category === "cardio");
+  const strengthSets = daySets.length - cardioSets.length;
+  const strengthMinutes = strengthSets * MINUTES_PER_SET;
+  const strength = round((STRENGTH_MET - 1) * kg * (strengthMinutes / 60));
+  const cardioMinutes = cardioSets.reduce((m, s) => m + (s.minutes ?? 0), 0);
+  const cardio = cardioSets.reduce((k, s) => k + Math.max(0, (byId.get(s.exerciseId)?.met ?? 6) - 1) * kg * ((s.minutes ?? 0) / 60), 0);
+
+  const meals = data.meals.filter((m) => m.date === day);
+  const intake = round(sumNutrients(meals).kcal);
+  const tef = round(intake * TEF_RATE);
+  const total = base + walk + strength + round(cardio) + tef;
+  return {
+    bmr: base,
+    steps,
+    stepsKcal: walk,
+    strengthSets,
+    strengthMinutes,
+    strengthKcal: strength,
+    cardioMinutes,
+    cardioKcal: round(cardio),
+    tef,
+    total,
+    intake,
+    hasMeals: meals.length > 0,
+    balance: intake - total,
+  };
 }

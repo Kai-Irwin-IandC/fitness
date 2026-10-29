@@ -146,9 +146,12 @@ export function formatEntry(ex: Exercise | undefined, s: Pick<SetEntry, "weight"
   return s.weight === 0 ? `自重×${s.reps}` : `${s.weight}kg×${s.reps}`;
 }
 
-/** Calories burned: METs × body weight × hours. A rough estimate. */
+/**
+ * Calories burned on top of resting metabolism: (METs − 1) × body weight × hours.
+ * The resting 1 MET is already in BMR, so it is left out to avoid counting it twice. An estimate.
+ */
 export function cardioKcal(met: number | undefined, kg: number, minutes: number): number {
-  return Math.round((met ?? 6) * kg * (minutes / 60));
+  return Math.round(Math.max(0, (met ?? 6) - 1) * kg * (minutes / 60));
 }
 
 /** Optional finishers offered under every split day. */
